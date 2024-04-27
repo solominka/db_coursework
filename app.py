@@ -6,8 +6,8 @@ from apispec_webframeworks.flask import FlaskPlugin
 
 from db.pool import get_ydb_driver
 from exceptions import IdempotencyViolationException, ClientNotFoundException
-from service.agreement_management_service import AgreementManagementService
 from service.client_management_service import ClientManagementService
+from service.product_management_service import ProductManagementService
 
 spec = APISpec(
     title='Online bank system',
@@ -104,9 +104,8 @@ def open_product():
             schema:
                 $ref: '#/definitions/CreateEntityResponse'
     """
-    # todo create accounts in product management service
     try:
-        agreement_id = agreementManagementService.create_agreement(request_body=request.get_json())
+        agreement_id = productManagementService.create_product(request_body=request.get_json())
         resp = {'success': True, 'id': agreement_id}
     except ClientNotFoundException:
         resp = {'success': False, 'error': 'CLIENT_NOT_FOUND'}
@@ -125,7 +124,7 @@ swag = Swagger(app, template=template)
 ydb_driver = get_ydb_driver()
 ydb_driver.wait(fail_fast=True, timeout=30)
 clientManagementService = ClientManagementService(ydb_driver)
-agreementManagementService = AgreementManagementService(ydb_driver)
+productManagementService = ProductManagementService(ydb_driver)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)

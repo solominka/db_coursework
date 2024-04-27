@@ -1,5 +1,7 @@
 import json
+from datetime import date
 
+from db.repository.account_repository import AccountRepository
 from db.repository.agreement_repository import AgreementRepository
 from db.repository.client_repository import ClientRepository
 from db.repository.request_repository import RequestRepository
@@ -7,14 +9,15 @@ from exceptions import ClientNotFoundException
 from service.id_generator import IdGenerator
 
 
-class AgreementManagementService:
+class ProductManagementService:
     def __init__(self, ydb_driver):
         self.__clientRepo = ClientRepository(ydb_driver)
         self.__agreementRepo = AgreementRepository(ydb_driver)
+        self.__accountRepo = AccountRepository(ydb_driver)
         self.__request_repo = RequestRepository(ydb_driver)
         self.__id_generator = IdGenerator(ydb_driver)
 
-    def create_agreement(self, request_body):
+    def create_product(self, request_body):
         buid = request_body['buid']
         client = self.__clientRepo.find_by_buid(buid)
         if len(client) == 0:
@@ -25,7 +28,7 @@ class AgreementManagementService:
         request = self.__request_repo.save_or_get(
             idempotency_token=idempotency_token,
             body=body_json,
-            request_type="CREATE_AGREEMENT",
+            request_type="CREATE_PRODUCT",
         )
         if request is not None:
             return request['created_entity_id']
@@ -40,5 +43,15 @@ class AgreementManagementService:
         self.__request_repo.save_created_entity_id(
             idempotency_token=idempotency_token,
             created_entity_id=agreement_id,
+        )
+
+        account_numbers = self.__id_generator.generate_account_numbers(product=request_body['product'])
+        self.__accountRepo.insert_accounts(
+            kwargs=[{
+                'number': num,
+                'agreement_id': agreement_id,
+                'status': 'OPEN',
+                'opening_date': date.today(),
+            } for num in account_numbers]
         )
         return agreement_id

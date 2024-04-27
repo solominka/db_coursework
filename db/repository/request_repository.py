@@ -8,7 +8,8 @@ from exceptions import IdempotencyViolationException
 class RequestRepository:
     SELECT_BY_IDEMPOTENCY_TOKEN_QUERY = """
         declare $idempotency_token as Text;
-        select * from request where idempotency_token = $idempotency_token; 
+        declare $request_type as Text;
+        select * from request where idempotency_token = $idempotency_token and request_type = $request_type; 
     """
 
     UPDATE_CREATED_ENTITY_ID_QUERY = """
@@ -31,7 +32,7 @@ class RequestRepository:
             })
 
     def save_or_get(self, idempotency_token, body, request_type):
-        existing_request = self.find_by_idempotency_token(idempotency_token)
+        existing_request = self.find_by_idempotency_token(idempotency_token, request_type)
         if len(existing_request) != 0:
             if existing_request[0]['body'] == body:
                 return existing_request[0]
@@ -40,12 +41,13 @@ class RequestRepository:
         else:
             self.save(idempotency_token=idempotency_token, body=body, request_type=request_type)
 
-    def find_by_idempotency_token(self, idempotency_token):
+    def find_by_idempotency_token(self, idempotency_token, request_type):
         return execute_select_query(
             pool=self.__ydb_pool,
             query=self.SELECT_BY_IDEMPOTENCY_TOKEN_QUERY,
             kwargs={
                 "$idempotency_token": idempotency_token,
+                "$request_type": request_type
             })
 
     def save(self, idempotency_token, body, request_type):
