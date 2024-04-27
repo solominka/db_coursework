@@ -5,7 +5,8 @@ from apispec.ext.marshmallow import MarshmallowPlugin
 from apispec_webframeworks.flask import FlaskPlugin
 
 from db.pool import get_ydb_driver
-from exceptions import IdempotencyViolationException
+from exceptions import IdempotencyViolationException, ClientNotFoundException
+from service.agreement_management_service import AgreementManagementService
 from service.client_management_service import ClientManagementService
 
 spec = APISpec(
@@ -21,9 +22,10 @@ spec = APISpec(
 app = Flask(__name__)
 
 
-class RegisterResponseSchema(Schema):
+class CreateEntityResponseSchema(Schema):
     success = fields.Bool(required=True)
     error = fields.Str(required=False)
+    id = fields.Str(required=False)
 
 
 @app.route('/client/register', methods=['POST'])
@@ -61,21 +63,60 @@ def register_client():
         200:
             description: Registration result
             schema:
-                $ref: '#/definitions/RegisterResponse'
+                $ref: '#/definitions/CreateEntityResponse'
     """
 
     try:
-        clientManagementService.register_user(request_body=request.get_json())
-        resp = {'success': True}
+        buid = clientManagementService.register_user(request_body=request.get_json())
+        resp = {'success': True, 'id': buid}
     except IdempotencyViolationException:
         resp = {'success': False, 'error': 'IDEMPOTENCY_VIOLATION'}
 
-    return jsonify(RegisterResponseSchema().dump(resp))
+    return jsonify(CreateEntityResponseSchema().dump(resp))
+
+
+@app.route('/product/open', methods=['POST'])
+def open_product():
+    """
+    Open a new product (current account / savings account / credit)
+    ---
+    description: Open a new product (current account / savings account / credit)
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          title: ProductData
+          required:
+            - buid
+            - product
+            - idempotency_token
+          properties:
+            buid:
+              type: string
+            product:
+              type: string
+            idempotency_token:
+              type: string
+    responses:
+        200:
+            description: Opening result
+            schema:
+                $ref: '#/definitions/CreateEntityResponse'
+    """
+    # todo create accounts in product management service
+    try:
+        agreement_id = agreementManagementService.create_agreement(request_body=request.get_json())
+        resp = {'success': True, 'id': agreement_id}
+    except ClientNotFoundException:
+        resp = {'success': False, 'error': 'CLIENT_NOT_FOUND'}
+
+    return jsonify(CreateEntityResponseSchema().dump(resp))
 
 
 template = spec.to_flasgger(
     app,
-    definitions=[RegisterResponseSchema],
+    definitions=[CreateEntityResponseSchema],
     paths=[register_client]
 )
 
@@ -84,6 +125,7 @@ swag = Swagger(app, template=template)
 ydb_driver = get_ydb_driver()
 ydb_driver.wait(fail_fast=True, timeout=30)
 clientManagementService = ClientManagementService(ydb_driver)
+agreementManagementService = AgreementManagementService(ydb_driver)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
