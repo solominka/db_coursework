@@ -16,6 +16,8 @@ create table `request` (
     created_at Timestamp,
     created_entity_id Text,
     PRIMARY KEY (idempotency_token)
+) WITH (
+    TTL = Interval("PT72H") ON `created_at`
 );
 
 create table `agreement` (
@@ -37,6 +39,8 @@ create table `account` (
     closing_date Date,
     PRIMARY KEY (`number`)
 );
+
+alter table `account` add index `account_agreement_id_idx` global async on (`agreement_id`);
 
 create table `account_number_sequence` (
     `balance_position` Text,

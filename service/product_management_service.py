@@ -55,3 +55,24 @@ class ProductManagementService:
             } for num in account_numbers]
         )
         return agreement_id
+
+    def close_product(self, request_body):
+        agreement_id = request_body['agreement_id']
+        agreement = self.__agreementRepo.find_by_id(agreement_id)
+        if len(agreement) == 0:
+            raise ClientNotFoundException("agreement not found by id {}".format(agreement_id))
+        if agreement[0]['status'] == 'CLOSED':
+            return
+
+        idempotency_token = request_body['idempotency_token']
+        body_json = json.dumps(request_body)
+        request = self.__request_repo.save_or_get(
+            idempotency_token=idempotency_token,
+            body=body_json,
+            request_type="CLOSE_PRODUCT",
+        )
+        if request is not None:
+            return
+
+        self.__agreementRepo.close_agreement(id=agreement_id)
+        self.__accountRepo.close_accounts(agreement_id=agreement_id)
