@@ -14,11 +14,9 @@ class AccountNumberSequenceRepository:
         self.__ydb_driver = ydb_driver
         self.__ydb_pool = ydb.SessionPool(self.__ydb_driver)
 
-    def get_next_numbers(self, balance_positions, tx=None):
+    def get_next_numbers(self, balance_positions):
         return execute_reading_query(
             pool=self.__ydb_pool,
-            current_transaction=tx,
-            commit_tx=False,
             query=self.GET_NEXT_NUMBERS_QUERY,
             kwargs={
                 "$balance_positions": balance_positions,
