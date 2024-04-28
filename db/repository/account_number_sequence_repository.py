@@ -1,6 +1,6 @@
 import ydb
 
-from db.utils import execute_select_query
+from db.utils import execute_reading_query
 
 
 class AccountNumberSequenceRepository:
@@ -15,7 +15,7 @@ class AccountNumberSequenceRepository:
         self.__ydb_pool = ydb.SessionPool(self.__ydb_driver)
 
     def get_next_numbers(self, balance_positions):
-        return execute_select_query(
+        return execute_reading_query(
             pool=self.__ydb_pool,
             query=self.GET_NEXT_NUMBERS_QUERY,
             kwargs={
