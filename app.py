@@ -5,7 +5,7 @@ from apispec.ext.marshmallow import MarshmallowPlugin
 from apispec_webframeworks.flask import FlaskPlugin
 
 from db.pool import get_ydb_driver
-from exceptions import IdempotencyViolationException, ClientNotFoundException
+from exceptions import IdempotencyViolationException, ClientNotFoundException, AgreementNotFoundException
 from service.client_management_service import ClientManagementService
 from service.product_management_service import ProductManagementService
 
@@ -109,6 +109,43 @@ def open_product():
         resp = {'success': True, 'id': agreement_id}
     except ClientNotFoundException:
         resp = {'success': False, 'error': 'CLIENT_NOT_FOUND'}
+
+    return jsonify(CreateEntityResponseSchema().dump(resp))
+
+
+@app.route('/product/close', methods=['POST'])
+def close_product():
+    """
+    Close product (current account / savings account / credit)
+    ---
+    description: Close product (current account / savings account / credit)
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          title: CloseData
+          required:
+            - agreement_id
+            - idempotency_token
+          properties:
+            agreement_id:
+              type: string
+            idempotency_token:
+              type: string
+    responses:
+        200:
+            description: Closing result
+            schema:
+                $ref: '#/definitions/CreateEntityResponse'
+    """
+    try:
+        productManagementService.close_product(request_body=request.get_json())
+        resp = {'success': True}
+    except AgreementNotFoundException:
+        resp = {'success': False, 'error': 'AGREEMENT_NOT_FOUND'}
+    except IdempotencyViolationException:
+        resp = {'success': False, 'error': 'IDEMPOTENCY_VIOLATION'}
 
     return jsonify(CreateEntityResponseSchema().dump(resp))
 

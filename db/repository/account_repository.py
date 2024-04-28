@@ -1,9 +1,23 @@
 import os
+from datetime import date
 
 import ydb
 
+from db.utils import execute_modifying_query
+
 
 class AccountRepository:
+    CLOSE_ACCOUNTS_QUERY = """
+        declare $agreement_id as Text;
+        declare $status as Text;
+        declare $closing_date as Date;
+            
+        update account set
+            status = $status,
+            closing_date = $closing_date
+        where agreement_id = $agreement_id;
+    """
+
     def __init__(self, ydb_driver):
         self.__ydb_driver = ydb_driver
         self.__ydb_pool = ydb.SessionPool(self.__ydb_driver)
@@ -19,3 +33,15 @@ class AccountRepository:
             os.getenv("YDB_DATABASE") + '/account',
             kwargs,
             column_types)
+
+    def close_accounts(self, tx, agreement_id):
+        execute_modifying_query(
+            pool=self.__ydb_pool,
+            current_transaction=tx,
+            commit_tx=True,
+            query=self.CLOSE_ACCOUNTS_QUERY,
+            kwargs={
+                "$agreement_id": agreement_id,
+                "$status": "CLOSED",
+                "$closing_date": date.today(),
+            })
