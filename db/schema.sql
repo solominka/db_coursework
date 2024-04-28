@@ -25,6 +25,7 @@ create table `agreement` (
     opening_date Date,
     closing_date Date,
     auth_level Text,
+    revision Int64,
     PRIMARY KEY (id)
 );
 
@@ -43,5 +44,16 @@ create table `account_number_sequence` (
     PRIMARY KEY (`balance_position`)
 );
 
+create table `agreement_audit` (
+    revision Int64,
+    agreement_id Text,
+    buid Text,
+    `status` Text,
+    opening_date Date,
+    closing_date Date,
+    auth_level Text,
+    PRIMARY KEY (agreement_id, revision)
+);
+
 insert into `account_number_sequence`(balance_position, current_value)
-    values (47423, 0), (40903, 0), (42301, 0), (47411, 0), (47422, 0), (47423, 0);
+    values ('47423', 0), ('40903', 0), ('42301', 0), ('47411', 0), ('47422', 0);
