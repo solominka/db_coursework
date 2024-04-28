@@ -22,6 +22,7 @@ create table `request` (
 
 create table `agreement` (
     id Text,
+    product Text,
     buid Text,
     `status` Text,
     opening_date Date,
@@ -33,7 +34,9 @@ create table `agreement` (
 
 create table `account` (
     `number` Text,
+    buid Text,
     agreement_id Text,
+    auth_level Text,
     `status` Text,
     opening_date Date,
     closing_date Date,
@@ -41,6 +44,7 @@ create table `account` (
 );
 
 alter table `account` add index `account_agreement_id_idx` global async on (`agreement_id`);
+alter table `account` add index `account_buid_idx` global async on (`buid`);
 
 create table `account_number_sequence` (
     `balance_position` Text,
@@ -51,6 +55,7 @@ create table `account_number_sequence` (
 create table `agreement_audit` (
     revision Int64,
     agreement_id Text,
+    product Text,
     buid Text,
     `status` Text,
     opening_date Date,
@@ -60,4 +65,4 @@ create table `agreement_audit` (
 );
 
 insert into `account_number_sequence`(balance_position, current_value)
-    values ('47423', 0), ('40903', 0), ('42301', 0), ('47411', 0), ('47422', 0);
+    values ('47423', 0), ('40903', 0), ('42301', 0), ('47411', 0), ('47422', 0), ('40914', 0);

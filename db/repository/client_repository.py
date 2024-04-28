@@ -22,15 +22,23 @@ class ClientRepository:
             ($buid, $version, $name, $surname, $patronymic, $phone, $auth_level);
     """
 
+    UPDATE_AUTH_LEVEL_QUERY = """
+        declare $buid as Text;
+        declare $new_auth_level as Text;
+        
+        update client set
+            auth_level = $new_auth_level,
+            version = version + 1
+        where buid = $buid;
+    """
+
     def __init__(self, ydb_driver):
         self.__ydb_driver = ydb_driver
         self.__ydb_pool = ydb.SessionPool(self.__ydb_driver)
 
-    def find_by_buid(self, buid, tx=None):
+    def find_by_buid(self, buid):
         return execute_reading_query(
             pool=self.__ydb_pool,
-            current_transaction=tx,
-            commit_tx=False,
             query=self.SELECT_BY_BUID_QUERY,
             kwargs={
                 "$buid": buid
@@ -48,4 +56,13 @@ class ClientRepository:
                 "$patronymic": patronymic,
                 "$phone": phone,
                 "$auth_level": auth_level,
+            })
+
+    def update_auth_level_by_buid(self, buid, new_auth_level):
+        execute_modifying_query(
+            pool=self.__ydb_pool,
+            query=self.UPDATE_AUTH_LEVEL_QUERY,
+            kwargs={
+                "$buid": buid,
+                "$new_auth_level": new_auth_level,
             })

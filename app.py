@@ -22,7 +22,7 @@ spec = APISpec(
 app = Flask(__name__)
 
 
-class CreateEntityResponseSchema(Schema):
+class ResponseSchema(Schema):
     success = fields.Bool(required=True)
     error = fields.Str(required=False)
     id = fields.Str(required=False)
@@ -63,7 +63,7 @@ def register_client():
         200:
             description: Registration result
             schema:
-                $ref: '#/definitions/CreateEntityResponse'
+                $ref: '#/definitions/Response'
     """
 
     try:
@@ -72,7 +72,7 @@ def register_client():
     except IdempotencyViolationException:
         resp = {'success': False, 'error': 'IDEMPOTENCY_VIOLATION'}
 
-    return jsonify(CreateEntityResponseSchema().dump(resp))
+    return jsonify(ResponseSchema().dump(resp))
 
 
 @app.route('/product/open', methods=['POST'])
@@ -102,15 +102,17 @@ def open_product():
         200:
             description: Opening result
             schema:
-                $ref: '#/definitions/CreateEntityResponse'
+                $ref: '#/definitions/Response'
     """
     try:
         agreement_id = productManagementService.create_product(request_body=request.get_json())
         resp = {'success': True, 'id': agreement_id}
     except ClientNotFoundException:
         resp = {'success': False, 'error': 'CLIENT_NOT_FOUND'}
+    except IdempotencyViolationException:
+        resp = {'success': False, 'error': 'IDEMPOTENCY_VIOLATION'}
 
-    return jsonify(CreateEntityResponseSchema().dump(resp))
+    return jsonify(ResponseSchema().dump(resp))
 
 
 @app.route('/product/close', methods=['POST'])
@@ -137,7 +139,7 @@ def close_product():
         200:
             description: Closing result
             schema:
-                $ref: '#/definitions/CreateEntityResponse'
+                $ref: '#/definitions/Response'
     """
     try:
         productManagementService.close_product(request_body=request.get_json())
@@ -147,12 +149,52 @@ def close_product():
     except IdempotencyViolationException:
         resp = {'success': False, 'error': 'IDEMPOTENCY_VIOLATION'}
 
-    return jsonify(CreateEntityResponseSchema().dump(resp))
+    return jsonify(ResponseSchema().dump(resp))
+
+
+@app.route('/client/upgrade', methods=['POST'])
+def upgrade_client():
+    """
+    Upgrade client and all their products
+    ---
+    description: Upgrade client and all their products
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          title: UpgradeData
+          required:
+            - buid
+            - idempotency_token
+            - new_auth_level
+          properties:
+            buid:
+              type: string
+            new_auth_level:
+              type: string
+            idempotency_token:
+              type: string
+    responses:
+        200:
+            description: Closing result
+            schema:
+                $ref: '#/definitions/Response'
+    """
+    try:
+        clientManagementService.upgrade_user(request_body=request.get_json())
+        resp = {'success': True}
+    except ClientNotFoundException:
+        resp = {'success': False, 'error': 'CLIENT_NOT_FOUND'}
+    except IdempotencyViolationException:
+        resp = {'success': False, 'error': 'IDEMPOTENCY_VIOLATION'}
+
+    return jsonify(ResponseSchema().dump(resp))
 
 
 template = spec.to_flasgger(
     app,
-    definitions=[CreateEntityResponseSchema],
+    definitions=[ResponseSchema],
     paths=[register_client]
 )
 
