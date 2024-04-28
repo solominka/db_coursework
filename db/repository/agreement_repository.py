@@ -52,9 +52,11 @@ class AgreementRepository:
         self.__ydb_driver = ydb_driver
         self.__ydb_pool = ydb.SessionPool(self.__ydb_driver)
 
-    def insert_agreement(self, id, buid, status, auth_level):
+    def insert_agreement(self, tx, id, buid, status, auth_level):
         execute_modifying_query(
             pool=self.__ydb_pool,
+            current_transaction=tx,
+            commit_tx=False,
             query=self.SAVE_WITH_AUDIT_QUERY,
             kwargs={
                 "$agreement_id": id,
@@ -65,9 +67,11 @@ class AgreementRepository:
                 "$revision": 0,
             })
 
-    def close_agreement(self, id):
+    def close_agreement(self, tx, id):
         execute_modifying_query(
             pool=self.__ydb_pool,
+            current_transaction=tx,
+            commit_tx=False,
             query=self.CLOSE_WITH_AUDIT_QUERY,
             kwargs={
                 "$agreement_id": id,
@@ -75,9 +79,11 @@ class AgreementRepository:
                 "$closing_date": date.today(),
             })
 
-    def find_by_id(self, id):
+    def find_by_id(self, tx, id):
         return execute_reading_query(
             pool=self.__ydb_pool,
+            current_transaction=tx,
+            commit_tx=False,
             query=self.SELECT_BY_ID_QUERY,
             kwargs={
                 "$id": id,

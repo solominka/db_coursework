@@ -26,9 +26,11 @@ class ClientRepository:
         self.__ydb_driver = ydb_driver
         self.__ydb_pool = ydb.SessionPool(self.__ydb_driver)
 
-    def find_by_buid(self, buid):
+    def find_by_buid(self, buid, tx=None):
         return execute_reading_query(
             pool=self.__ydb_pool,
+            current_transaction=tx,
+            commit_tx=False,
             query=self.SELECT_BY_BUID_QUERY,
             kwargs={
                 "$buid": buid

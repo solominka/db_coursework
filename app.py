@@ -144,6 +144,8 @@ def close_product():
         resp = {'success': True}
     except AgreementNotFoundException:
         resp = {'success': False, 'error': 'AGREEMENT_NOT_FOUND'}
+    except IdempotencyViolationException:
+        resp = {'success': False, 'error': 'IDEMPOTENCY_VIOLATION'}
 
     return jsonify(CreateEntityResponseSchema().dump(resp))
 

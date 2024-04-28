@@ -20,7 +20,8 @@ class IdGenerator:
     def generate_agreement_id(self, product):
         return self.AGREEMENT_ID_PREFIXES[product] + shortuuid.uuid()
 
-    def generate_account_numbers(self, product):
+    def generate_account_numbers(self, product, tx=None):
         balance_positions = self.ACCOUNT_BALANCE_POSITIONS[product]
-        account_numbers = self.__accountNumberSequenceRepository.get_next_numbers(balance_positions)
+        account_numbers = self.__accountNumberSequenceRepository.get_next_numbers(balance_positions=balance_positions,
+                                                                                  tx=tx)
         return [it['balance_position'] + str(it['current_value']).zfill(15) for it in account_numbers]

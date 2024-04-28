@@ -30,38 +30,45 @@ class RequestRepository:
         self.__ydb_driver = ydb_driver
         self.__ydb_pool = ydb.SessionPool(self.__ydb_driver)
 
-    def save_created_entity_id(self, idempotency_token, created_entity_id):
+    def save_created_entity_id(self, idempotency_token, created_entity_id, tx=None):
         execute_modifying_query(
             pool=self.__ydb_pool,
+            current_transaction=tx,
+            commit_tx=True,
             query=self.UPDATE_CREATED_ENTITY_ID_QUERY,
             kwargs={
                 "$idempotency_token": idempotency_token,
                 '$created_entity_id': created_entity_id,
             })
 
-    def save_or_get(self, idempotency_token, body, request_type):
+    def save_or_get(self, idempotency_token, body, request_type, tx=None):
         try:
-            self.save(idempotency_token=idempotency_token, body=body, request_type=request_type)
+            self.save(tx=tx, idempotency_token=idempotency_token, body=body, request_type=request_type)
         except ydb.issues.PreconditionFailed:
-            existing_request = self.find_by_idempotency_token(idempotency_token, request_type)
+            existing_request = self.find_by_idempotency_token(idempotency_token=idempotency_token,
+                                                              request_type=request_type)
             if len(existing_request) != 0:
                 if existing_request[0]['body'] == body:
                     return existing_request[0]
                 else:
                     raise IdempotencyViolationException(message="idempotency violation on {}".format(request_type))
 
-    def find_by_idempotency_token(self, idempotency_token, request_type):
+    def find_by_idempotency_token(self, idempotency_token, request_type, tx=None):
         return execute_reading_query(
             pool=self.__ydb_pool,
+            current_transaction=tx,
+            commit_tx=False,
             query=self.SELECT_BY_IDEMPOTENCY_TOKEN_QUERY,
             kwargs={
                 "$idempotency_token": idempotency_token,
                 "$request_type": request_type
             })
 
-    def save(self, idempotency_token, body, request_type):
+    def save(self, tx, idempotency_token, body, request_type):
         execute_modifying_query(
             pool=self.__ydb_pool,
+            current_transaction=tx,
+            commit_tx=False,
             query=self.SAVE_REQUEST_QUERY,
             kwargs={
                 "$idempotency_token": idempotency_token,

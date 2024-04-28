@@ -17,6 +17,7 @@ class AccountRepository:
             closing_date = $closing_date
         where agreement_id = $agreement_id;
     """
+
     def __init__(self, ydb_driver):
         self.__ydb_driver = ydb_driver
         self.__ydb_pool = ydb.SessionPool(self.__ydb_driver)
@@ -33,9 +34,11 @@ class AccountRepository:
             kwargs,
             column_types)
 
-    def close_accounts(self, agreement_id):
+    def close_accounts(self, tx, agreement_id):
         execute_modifying_query(
             pool=self.__ydb_pool,
+            current_transaction=tx,
+            commit_tx=True,
             query=self.CLOSE_ACCOUNTS_QUERY,
             kwargs={
                 "$agreement_id": agreement_id,
