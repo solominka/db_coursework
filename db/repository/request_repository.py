@@ -14,9 +14,11 @@ class RequestRepository:
     UPDATE_CREATED_ENTITY_ID_QUERY = """
         declare $idempotency_token as Text;
         declare $created_entity_id as Text;
+        declare $success as Bool;
+        
         update request set 
             created_entity_id = $created_entity_id,
-            success = True
+            success = $success
         where idempotency_token = $idempotency_token; 
     """
 
@@ -33,13 +35,14 @@ class RequestRepository:
         self.__ydb_driver = ydb_driver
         self.__ydb_pool = ydb.SessionPool(self.__ydb_driver)
 
-    def save_created_entity_id(self, idempotency_token, created_entity_id):
+    def save_result(self, idempotency_token, created_entity_id='', success=True):
         execute_modifying_query(
             pool=self.__ydb_pool,
             query=self.UPDATE_CREATED_ENTITY_ID_QUERY,
             kwargs={
                 "$idempotency_token": idempotency_token,
                 '$created_entity_id': created_entity_id,
+                '$success': success,
             })
 
     def save_or_get(self, idempotency_token, body, request_type):

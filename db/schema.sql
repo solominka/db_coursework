@@ -107,4 +107,11 @@ create table stmt_request (
     created_at Timestamp,
     fail_reason Text,
     PRIMARY KEY (id)
-)
+);
+
+create table lock (
+    buid Text,
+    agreement_id Text,
+    acquired_at Timestamp,
+    PRIMARY KEY (buid, agreement_id)
+);
