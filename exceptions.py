@@ -28,3 +28,11 @@ class InvalidTransactionException(Exception):
 
     def str(self):
         return self.message
+
+
+class InvalidInputException(Exception):
+    def __init__(self, message):
+        self.message = message
+
+    def str(self):
+        return self.message

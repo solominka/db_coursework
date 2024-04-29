@@ -6,6 +6,7 @@ from db.repository.client_repository import ClientRepository
 from db.repository.request_repository import RequestRepository
 from db.repository.transaction_repository import TransactionRepository
 from exceptions import InvalidTransactionException
+from service.CashbackService import CashbackService
 
 
 class TransactionService:
@@ -23,13 +24,17 @@ class TransactionService:
         self.__request_repo = RequestRepository(ydb_driver)
         self.__transactionRepo = TransactionRepository(ydb_driver)
         self.__balanceRepository = BalanceRepository()
+        self.__cashbackService = CashbackService(ydb_driver)
 
     def import_txn(self, txn):
         error = self.validate_txn(txn=txn)
         if error is not None:
             raise InvalidTransactionException(message=error)
 
-        self.__transactionRepo.save_transaction(txn=txn)
+        try:
+            self.__transactionRepo.save_transaction(txn=txn)
+        except ydb.issues.PreconditionFailed:
+            return
         self.update_balance(txn=txn)
 
     def validate_txn(self, txn):
@@ -43,11 +48,11 @@ class TransactionService:
             return "invalid iso_category"
 
     def update_balance(self, txn):
-        if txn['iso_class'] != 'FINANCIAL' or txn['status'] == 'FAIL' \
+        if txn['iso_class'] != 'FINANCIAL' or txn['status'] in ['CLEAR', 'FAIL'] \
                 or txn['iso_category'] not in ['REQUEST', 'ADVICE']:
             return
 
-        balance_change = int(txn['transaction_amount'])
+        balance_change = float(txn['transaction_amount'])
         if txn['iso_direction'] == 'CREDIT':  # пополнение
             agreement_id = txn['receiver_agreement_id']
         else:  # списание
@@ -57,4 +62,26 @@ class TransactionService:
         if txn['status'] == 'CANCEL':
             balance_change *= -1
 
+        agreement = self.__agreementRepo.find_by_id(agreement_id)
+        if len(agreement) == 0:
+            return
+
         self.__balanceRepository.update_balances(agreement_id=agreement_id, balance_change=balance_change)
+        if balance_change < 0 and txn['status'] != 'CANCEL':
+            self.__cashbackService.credit_cashback(
+                agreement_id=agreement_id,
+                buid=agreement[0]['buid'],
+                mcc=txn['mcc'],
+                txn_amount=txn['transaction_amount'],
+                txn_date=txn['transaction_date'],
+            )
+
+        if balance_change > 0 and txn['status'] == 'CANCEL':
+            original_transaction = self.__transactionRepo.find_by_id(id=txn['ref_id'])
+            self.__cashbackService.debit_cashback(
+                agreement_id=agreement_id,
+                buid=agreement[0]['buid'],
+                mcc=original_transaction['mcc'],
+                txn_amount=balance_change,
+                txn_date=original_transaction['transaction_date'],
+            )

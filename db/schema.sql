@@ -81,6 +81,18 @@ create table transaction_event (
     transaction_amount Text,
     receiver_agreement_id Text,
     originator_agreement_id Text,
+    mcc Text,
     created_at Timestamp,
     PRIMARY KEY (id)
 )
+
+create table cashback_rules (
+    id Text,
+    buid Text,
+    mcc_mapping Json,
+    active_from Date,
+    active_to Date,
+    PRIMARY KEY (id)
+) WITH (
+    TTL = Interval("PT720H") ON `active_to`
+);

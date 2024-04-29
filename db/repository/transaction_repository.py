@@ -2,12 +2,13 @@ from datetime import datetime, date
 
 import ydb
 
-from db.utils import execute_modifying_query
+from db.utils import execute_modifying_query, execute_reading_query
 
 
 class TransactionRepository:
     SAVE_TRANSACTION_QUERY = """
         declare $id as Text;
+        declare $mcc as Text;
         declare $ref_id as Text;
         declare $authorization_id as Text;
         declare $status as Text;
@@ -22,11 +23,16 @@ class TransactionRepository:
         declare $originator_agreement_id as Text;
         declare $created_at as Timestamp;
         
-        insert into transaction_event(id, ref_id, authorization_id, status, isoDirection, isoClass, isoCategory, 
+        insert into transaction_event(id, ref_id, mcc, authorization_id, status, isoDirection, isoClass, isoCategory, 
             transactionDate, rrn, orn, transaction_amount, receiver_agreement_id, originator_agreement_id, created_at) 
         values
-            ($id, $ref_id, $authorization_id, $status, $isoDirection, $isoClass, $isoCategory, $transactionDate,
+            ($id, $ref_id, $mcc, $authorization_id, $status, $isoDirection, $isoClass, $isoCategory, $transactionDate,
                 $rrn, $orn, $transaction_amount, $receiver_agreement_id, $originator_agreement_id, $created_at);
+    """
+
+    GET_TRANSACTION_BY_ID_QUERY = """
+        declare $id as Text;
+        select * from transaction_event where id = $id;
     """
 
     def __init__(self, ydb_driver):
@@ -40,6 +46,7 @@ class TransactionRepository:
             kwargs={
                 "$id": txn['id'],
                 "$ref_id": txn.get('ref_id', ''),
+                '$mcc': txn['mcc'],
                 "$authorization_id": txn.get('authorization_id', ''),
                 "$status": txn['status'],
                 "$isoDirection": txn['iso_direction'],
@@ -53,3 +60,12 @@ class TransactionRepository:
                 "$originator_agreement_id": txn.get('originator_agreement_id', ''),
                 "$created_at": datetime.now(),
             })
+
+    def find_by_id(self, id):
+        return execute_reading_query(
+            pool=self.__ydb_pool,
+            query=self.GET_TRANSACTION_BY_ID_QUERY,
+            kwargs={
+                "$id": id,
+            }
+        )

@@ -6,7 +6,9 @@ from apispec_webframeworks.flask import FlaskPlugin
 
 from db.pool import get_ydb_driver
 from db.repository.balance_repository import BalanceRepository
-from exceptions import IdempotencyViolationException, ClientNotFoundException, AgreementNotFoundException
+from exceptions import IdempotencyViolationException, ClientNotFoundException, AgreementNotFoundException, \
+    InvalidInputException
+from service.CashbackService import CashbackService
 from service.client_management_service import ClientManagementService
 from service.product_management_service import ProductManagementService
 from service.transaction_service import TransactionService
@@ -34,6 +36,17 @@ class BalanceResponseSchema(Schema):
     success = fields.Bool(required=True)
     error = fields.Str(required=False)
     balance = fields.Str(required=False)
+
+
+class CashbackResponseSchema(Schema):
+    success = fields.Bool(required=True)
+    error = fields.Str(required=False)
+    cashback = fields.Str(required=False)
+
+
+class CashbackRuleSchema(Schema):
+    mcc = fields.Str()
+    rate = fields.Float()
 
 
 @app.route('/client/register', methods=['POST'])
@@ -214,6 +227,7 @@ def import_txn():
           title: Transaction
           required:
             - id
+            - mcc
             - status
             - iso_direction
             - iso_class
@@ -226,6 +240,8 @@ def import_txn():
             id:
               type: string
             ref_id:
+              type: string
+            mcc:
               type: string
             authorization_id:
               type: string
@@ -264,6 +280,56 @@ def import_txn():
     return jsonify(ResponseSchema().dump(resp))
 
 
+@app.route('/cashback/rules/set', methods=['POST'])
+def set_cashback_rules():
+    """
+        Set cashback rules for client
+        ---
+        description: Set cashback rules for client
+        parameters:
+          - name: body
+            in: body
+            required: true
+            schema:
+              title: CashbackRuleData
+              required:
+                - buid
+                - mcc_mapping
+                - active_from
+                - active_to
+                - idempotency_token
+              properties:
+                buid:
+                  type: string
+                active_from:
+                  type: string
+                active_to:
+                  type: string
+                mcc_mapping:
+                  type: array
+                  items:
+                    $ref: '#/definitions/CashbackRule'
+                idempotency_token:
+                  type: string
+        responses:
+            200:
+                description: Result
+                schema:
+                    $ref: '#/definitions/Response'
+        """
+    try:
+        rule_id = cashbackService.save_rule(rule=request.get_json())
+        resp = {'success': True, 'id': rule_id}
+    except ClientNotFoundException:
+        resp = {'success': False, 'error': 'CLIENT_NOT_FOUND'}
+    except InvalidInputException as e:
+        resp = {'success': False, 'error': str(e)}
+    except IdempotencyViolationException:
+        resp = {'success': False, 'error': 'IDEMPOTENCY_VIOLATION'}
+
+    return jsonify(ResponseSchema().dump(resp))
+
+
 @app.route('/agreement/balance/<agreement_id>', methods=['GET'])
 def get_agreement_balance(agreement_id):
     """
@@ -290,10 +356,37 @@ def get_agreement_balance(agreement_id):
     return jsonify(BalanceResponseSchema().dump(resp))
 
 
+@app.route('/agreement/cashback/<agreement_id>', methods=['GET'])
+def get_agreement_cashback(agreement_id):
+    """
+    Get agreement cashback
+    ---
+    description: Get agreement cashback
+    parameters:
+      - name: agreement_id
+        in: path
+        required: true
+        type: string
+    responses:
+        200:
+            description: Result
+            schema:
+                $ref: '#/definitions/CashbackResponse'
+    """
+    try:
+        cashback = balanceRepository.get_cashback(agreement_id=agreement_id)
+        resp = {'success': True, 'cashback': cashback}
+    except AgreementNotFoundException:
+        resp = {'success': False, 'error': 'AGREEMENT_NOT_FOUND'}
+
+    return jsonify(CashbackResponseSchema().dump(resp))
+
+
 template = spec.to_flasgger(
     app,
-    definitions=[ResponseSchema, BalanceResponseSchema],
-    paths=[register_client, open_product, close_product, upgrade_client, import_txn, get_agreement_balance]
+    definitions=[ResponseSchema, BalanceResponseSchema, CashbackRuleSchema, CashbackResponseSchema],
+    paths=[register_client, open_product, close_product, upgrade_client, import_txn, set_cashback_rules,
+           get_agreement_balance]
 )
 
 swag = Swagger(app, template=template)
@@ -304,6 +397,7 @@ clientManagementService = ClientManagementService(ydb_driver)
 productManagementService = ProductManagementService(ydb_driver)
 transactionService = TransactionService(ydb_driver)
 balanceRepository = BalanceRepository()
+cashbackService = CashbackService(ydb_driver)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)

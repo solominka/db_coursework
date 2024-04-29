@@ -22,16 +22,29 @@ class BalanceRepository:
         )
 
     def update_balances(self, agreement_id, balance_change):
-        current_balance = self.__rc.get(agreement_id)
+        current_balance = self.get_balance(agreement_id)
         if current_balance is None:
             raise AgreementNotFoundException("agreement not found by id {}".format(agreement_id))
         else:
-            current_balance = int(current_balance)
+            current_balance = float(current_balance)
 
-        self.__rc.set(agreement_id, current_balance + balance_change)
+        self.__rc.set(agreement_id + "_balance", current_balance + balance_change)
+
+    def credit_cashback(self, agreement_id, cashback):
+        current_cashback = self.get_cashback(agreement_id)
+        if current_cashback is None:
+            raise AgreementNotFoundException("agreement not found by id {}".format(agreement_id))
+        else:
+            current_cashback = float(current_cashback)
+
+        self.__rc.set(agreement_id + "_cashback", current_cashback + cashback)
 
     def init_agreement(self, agreement_id):
-        self.__rc.set(agreement_id, 0)
+        self.__rc.set(agreement_id + "_balance", 0)
+        self.__rc.set(agreement_id + "_cashback", 0)
 
     def get_balance(self, agreement_id):
-        return self.__rc.get(agreement_id)
+        return self.__rc.get(agreement_id + "_balance")
+
+    def get_cashback(self, agreement_id):
+        return self.__rc.get(agreement_id + "_cashback")
