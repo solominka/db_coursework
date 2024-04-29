@@ -32,6 +32,14 @@ class ClientRepository:
         where buid = $buid;
     """
 
+    FIND_CLIENT_BY_AGREEMENT_ID_QUERY = """
+        declare $agreement_id as Text;
+        
+        select * from client where buid in (
+            select buid from agreement where id = $agreement_id
+        );
+    """
+
     def __init__(self, ydb_driver):
         self.__ydb_driver = ydb_driver
         self.__ydb_pool = ydb.SessionPool(self.__ydb_driver)
@@ -42,6 +50,14 @@ class ClientRepository:
             query=self.SELECT_BY_BUID_QUERY,
             kwargs={
                 "$buid": buid
+            })
+
+    def find_by_agreement_id(self, agreement_id):
+        return execute_reading_query(
+            pool=self.__ydb_pool,
+            query=self.FIND_CLIENT_BY_AGREEMENT_ID_QUERY,
+            kwargs={
+                "$agreement_id": agreement_id
             })
 
     def insert_client(self, buid, name, surname, patronymic, phone, auth_level):
