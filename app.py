@@ -7,7 +7,7 @@ from apispec_webframeworks.flask import FlaskPlugin
 from db.pool import get_ydb_driver
 from db.repository.balance_repository import BalanceRepository
 from exceptions import IdempotencyViolationException, ClientNotFoundException, AgreementNotFoundException, \
-    InvalidInputException
+    InvalidInputException, ConcurrentModificationException
 from service.CashbackService import CashbackService
 from service.client_management_service import ClientManagementService
 from service.product_management_service import ProductManagementService

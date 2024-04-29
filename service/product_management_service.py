@@ -7,8 +7,9 @@ from db.repository.account_repository import AccountRepository
 from db.repository.agreement_repository import AgreementRepository
 from db.repository.balance_repository import BalanceRepository
 from db.repository.client_repository import ClientRepository
+from db.repository.lock_repository import LockRepository
 from db.repository.request_repository import RequestRepository
-from exceptions import ClientNotFoundException, AgreementNotFoundException
+from exceptions import ClientNotFoundException, AgreementNotFoundException, ConcurrentModificationException
 from service.id_generator import IdGenerator
 
 
@@ -23,6 +24,7 @@ class ProductManagementService:
         self.__request_repo = RequestRepository(ydb_driver)
         self.__id_generator = IdGenerator(ydb_driver)
         self.__balanceRepository = BalanceRepository()
+        self.__lockRepo = LockRepository(ydb_driver)
 
     def get_client_products(self, buid):
         products = self.__agreementRepo.select_with_accounts(buid=buid)
@@ -72,7 +74,7 @@ class ProductManagementService:
         )
         self.__balanceRepository.init_agreement(agreement_id=agreement_id)
 
-        self.__request_repo.save_created_entity_id(
+        self.__request_repo.save_result(
             idempotency_token=idempotency_token,
             created_entity_id=agreement_id,
         )
@@ -96,8 +98,14 @@ class ProductManagementService:
         if request is not None:
             return
 
+        self.__lockRepo.acquire_lock(agreement_id=agreement_id)
         self.__agreementRepo.close_agreement(id=agreement_id)
         self.__accountRepo.close_accounts(agreement_id=agreement_id)
+        self.__request_repo.save_result(
+            idempotency_token=idempotency_token,
+            success=True,
+        )
+        self.__lockRepo.release_lock(agreement_id=agreement_id)
 
     def upgrade_products(self, buid, old_auth_level, new_auth_level):
         self.__agreementRepo.upgrade_current_account(

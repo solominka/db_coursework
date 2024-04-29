@@ -6,6 +6,7 @@ import ydb
 from db.repository.account_repository import AccountRepository
 from db.repository.agreement_repository import AgreementRepository
 from db.repository.client_repository import ClientRepository
+from db.repository.lock_repository import LockRepository
 from db.repository.request_repository import RequestRepository
 from service.product_management_service import ProductManagementService
 
@@ -18,6 +19,7 @@ class ClientManagementService:
         self.__accountRepo = AccountRepository(ydb_driver)
         self.__request_repo = RequestRepository(ydb_driver)
         self.__productManagementService = ProductManagementService(ydb_driver)
+        self.__lockRepo = LockRepository(ydb_driver)
 
     def register_user(self, request_body):
         idempotency_token = request_body['idempotency_token']
@@ -39,7 +41,7 @@ class ClientManagementService:
             phone=request_body['phone'],
             auth_level=request_body['auth_level'],
         )
-        self.__request_repo.save_created_entity_id(
+        self.__request_repo.save_result(
             idempotency_token=idempotency_token,
             created_entity_id=buid,
         )
@@ -57,9 +59,12 @@ class ClientManagementService:
         if request is not None:
             return
 
+        self.__lockRepo.acquire_lock(buid=buid)
+
         new_auth_level = request_body['new_auth_level']
         old_auth_level = self.__clientRepo.find_by_buid(buid=buid)[0]['auth_level']
         if int(old_auth_level) >= int(new_auth_level):
+            self.__lockRepo.release_lock(buid=buid)
             return
 
         self.__clientRepo.update_auth_level_by_buid(
@@ -71,3 +76,4 @@ class ClientManagementService:
             old_auth_level=old_auth_level,
             new_auth_level=request_body['new_auth_level'],
         )
+        self.__lockRepo.release_lock(buid=buid)

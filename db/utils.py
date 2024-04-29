@@ -19,8 +19,10 @@ def execute_modifying_query(pool, query, kwargs):
     def callee(session):
         prepared_query = session.prepare(query)
         tx = session.transaction(ydb.SerializableReadWrite())
-        tx.execute(
+        result_sets = tx.execute(
             prepared_query, kwargs, commit_tx=True
         )
+        if len(result_sets) > 0:
+            return result_sets[0].rows
 
     pool.retry_operation_sync(callee)

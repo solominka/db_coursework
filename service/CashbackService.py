@@ -41,7 +41,7 @@ class CashbackService:
         rule_id = str(uuid4())
         rule['id'] = rule_id
         self.__cashbackRulesRepo.save_cashback_rule(rule)
-        self.__request_repo.save_created_entity_id(
+        self.__request_repo.save_result(
             idempotency_token=idempotency_token,
             created_entity_id=rule_id,
         )
