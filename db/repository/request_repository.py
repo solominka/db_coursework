@@ -14,7 +14,10 @@ class RequestRepository:
     UPDATE_CREATED_ENTITY_ID_QUERY = """
         declare $idempotency_token as Text;
         declare $created_entity_id as Text;
-        update request set created_entity_id = $created_entity_id where idempotency_token = $idempotency_token; 
+        update request set 
+            created_entity_id = $created_entity_id,
+            success = True
+        where idempotency_token = $idempotency_token; 
     """
 
     SAVE_REQUEST_QUERY = """
@@ -22,8 +25,8 @@ class RequestRepository:
         declare $body as Text;
         declare $request_type as Text;
         declare $created_at as Timestamp;
-        insert into request(idempotency_token, body, request_type, created_at) values
-            ($idempotency_token, $body, $request_type, $created_at);
+        insert into request(idempotency_token, body, request_type, created_at, success) values
+            ($idempotency_token, $body, $request_type, $created_at, False);
     """
 
     def __init__(self, ydb_driver):
@@ -47,7 +50,9 @@ class RequestRepository:
                                                               request_type=request_type)
             if len(existing_request) != 0:
                 if existing_request[0]['body'] == body:
-                    return existing_request[0]
+                    if bool(existing_request[0]['success']):
+                        return existing_request[0]
+                    return
                 else:
                     raise IdempotencyViolationException(message="idempotency violation on {}".format(request_type))
 

@@ -15,6 +15,7 @@ create table `request` (
     request_type Text,
     created_at Timestamp,
     created_entity_id Text,
+    success Bool,
     PRIMARY KEY (idempotency_token)
 ) WITH (
     TTL = Interval("PT72H") ON `created_at`
