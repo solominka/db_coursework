@@ -22,10 +22,10 @@ class TransactionRepository:
         declare $originator_agreement_id as Text;
         declare $created_at as Timestamp;
         
-        insert into transaction_event(id, ref_id, authorization_id, status, isoDirection, isoClass, isoCategory, 
+        insert into transaction_event(id, ref_id, mcc, authorization_id, status, isoDirection, isoClass, isoCategory, 
             transactionDate, rrn, orn, transaction_amount, receiver_agreement_id, originator_agreement_id, created_at) 
         values
-            ($id, $ref_id, $authorization_id, $status, $isoDirection, $isoClass, $isoCategory, $transactionDate,
+            ($id, $ref_id, $mcc, $authorization_id, $status, $isoDirection, $isoClass, $isoCategory, $transactionDate,
                 $rrn, $orn, $transaction_amount, $receiver_agreement_id, $originator_agreement_id, $created_at);
     """
 
@@ -40,6 +40,7 @@ class TransactionRepository:
             kwargs={
                 "$id": txn['id'],
                 "$ref_id": txn.get('ref_id', ''),
+                '$mcc': txn['mcc'],
                 "$authorization_id": txn.get('authorization_id', ''),
                 "$status": txn['status'],
                 "$isoDirection": txn['iso_direction'],
