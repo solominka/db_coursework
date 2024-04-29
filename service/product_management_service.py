@@ -24,6 +24,12 @@ class ProductManagementService:
         self.__id_generator = IdGenerator(ydb_driver)
         self.__balanceRepository = BalanceRepository()
 
+    def get_client_products(self, buid):
+        products = self.__agreementRepo.select_with_accounts(buid=buid)
+        for p in products:
+            p['opening_date'] = date.fromisoformat(p['opening_date'])
+        return products
+
     def create_product(self, request_body):
         agreement_id = self.__id_generator.generate_agreement_id(product=request_body['product'])
         buid = request_body['buid']
@@ -41,10 +47,6 @@ class ProductManagementService:
         if request is not None:
             return request['created_entity_id']
 
-        account_numbers = self.__id_generator.generate_account_numbers(
-            product=request_body['product'],
-            auth_level=client[0]['auth_level'],
-        )
         self.__agreementRepo.insert_agreement(
             id=agreement_id,
             buid=request_body['buid'],
@@ -52,15 +54,21 @@ class ProductManagementService:
             status='OPEN',
             auth_level=client[0]['auth_level'],
         )
+
+        account_numbers = self.__id_generator.generate_account_numbers(
+            product=request_body['product'],
+            auth_level=client[0]['auth_level'],
+        )
         self.__accountRepo.insert_accounts(
             kwargs=[{
                 'buid': buid,
-                'number': num,
+                'number': it['number'],
+                'type': it['type'],
                 'agreement_id': agreement_id,
                 'status': 'OPEN',
                 'opening_date': date.today(),
                 'auth_level': client[0]['auth_level'],
-            } for num in account_numbers],
+            } for it in account_numbers],
         )
         self.__balanceRepository.init_agreement(agreement_id=agreement_id)
 
@@ -109,11 +117,11 @@ class ProductManagementService:
             self.__accountRepo.insert_accounts(
                 kwargs=[{
                     'buid': buid,
-                    'number': num,
+                    'number': it['number'],
+                    'type': it['type'],
                     'agreement_id': ag['id'],
                     'status': 'OPEN',
                     'opening_date': date.today(),
                     'auth_level': new_auth_level,
-                } for num in new_account_numbers],
+                } for it in new_account_numbers],
             )
-

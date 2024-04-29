@@ -32,6 +32,21 @@ class ResponseSchema(Schema):
     id = fields.Str(required=False)
 
 
+class ProductDataSchema(Schema):
+    id = fields.Str(required=True)
+    opening_date = fields.Str(required=True)
+    product = fields.Str(required=True)
+    auth_level = fields.Str(required=True)
+    balance_account_number = fields.Str(required=True)
+
+
+class ClientAgreementsResponseSchema(Schema):
+    success = fields.Bool(required=True)
+    error = fields.Str(required=False)
+    buid = fields.Str(required=False)
+    products = fields.List(fields.Nested(ProductDataSchema), required=False)
+
+
 class BalanceResponseSchema(Schema):
     success = fields.Bool(required=True)
     error = fields.Str(required=False)
@@ -107,7 +122,7 @@ def open_product():
         in: body
         required: true
         schema:
-          title: ProductData
+          title: ProductDataOnOpen
           required:
             - buid
             - product
@@ -382,11 +397,38 @@ def get_agreement_cashback(agreement_id):
     return jsonify(CashbackResponseSchema().dump(resp))
 
 
+@app.route('/client/<buid>/products', methods=['GET'])
+def get_client_products(buid):
+    """
+    Get client agreements
+    ---
+    description: Get agreement balance
+    parameters:
+      - name: buid
+        in: path
+        required: true
+        type: string
+    responses:
+        200:
+            description: Result
+            schema:
+                $ref: '#/definitions/ClientAgreementsResponse'
+    """
+    try:
+        products = productManagementService.get_client_products(buid)
+        resp = {'success': True, 'products': products, 'buid': buid}
+    except ClientNotFoundException:
+        resp = {'success': False, 'error': 'CLIENT_NOT_FOUND'}
+
+    return jsonify(ClientAgreementsResponseSchema().dump(resp))
+
+
 template = spec.to_flasgger(
     app,
-    definitions=[ResponseSchema, BalanceResponseSchema, CashbackRuleSchema, CashbackResponseSchema],
+    definitions=[ResponseSchema, BalanceResponseSchema, CashbackRuleSchema, CashbackResponseSchema,
+                 ClientAgreementsResponseSchema],
     paths=[register_client, open_product, close_product, upgrade_client, import_txn, set_cashback_rules,
-           get_agreement_balance]
+           get_agreement_balance, get_client_products]
 )
 
 swag = Swagger(app, template=template)

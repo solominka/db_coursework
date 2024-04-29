@@ -9,6 +9,16 @@ class IdGenerator:
         'savings_account': 'sa_'
     }
 
+    BALANCE_POSITIONS_TO_TYPES = {
+        '47423': 'BANK_FEES',
+        '40903': 'BALANCE',
+        '40914': 'BALANCE',
+        '42301': 'BALANCE',
+        '47411': 'INTEREST_CAPITALIZATION',
+        '47422': 'BANK_LIABILITY',
+
+    }
+
     ACCOUNT_BALANCE_POSITIONS = {
         'current_account':
             {
@@ -30,4 +40,7 @@ class IdGenerator:
     def generate_account_numbers(self, product, auth_level):
         balance_positions = self.ACCOUNT_BALANCE_POSITIONS[product][auth_level]
         account_numbers = self.__accountNumberSequenceRepository.get_next_numbers(balance_positions=balance_positions)
-        return [it['balance_position'] + str(it['current_value']).zfill(15) for it in account_numbers]
+        return [{
+            'number': it['balance_position'] + str(it['current_value']).zfill(15),
+            'type': self.BALANCE_POSITIONS_TO_TYPES[it['balance_position']],
+        } for it in account_numbers]

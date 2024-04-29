@@ -74,14 +74,41 @@ class AgreementRepository:
     """
 
     SELECT_BY_BUID_QUERY = """
-            declare $buid as Text;
-            declare $status as Text;
-            select * from agreement where buid = $buid and status = $status;
-        """
+        declare $buid as Text;
+        declare $status as Text;
+        select * from agreement where buid = $buid and status = $status;
+    """
+
+    SELECT_WITH_ACCOUNT_QUERY = """
+        declare $buid as Text;
+        select 
+            agreement.id as id,
+            cast(agreement.opening_date as Text) as opening_date,
+            agreement.product as product,
+            agreement.auth_level as auth_level,
+            account.number as balance_account_number
+        from 
+            agreement join account on agreement.id = account.agreement_id
+        where 
+            agreement.buid = $buid
+            and account.type = 'BALANCE'
+            and account.status = 'OPEN'
+            and agreement.status = 'OPEN';
+
+    """
 
     def __init__(self, ydb_driver):
         self.__ydb_driver = ydb_driver
         self.__ydb_pool = ydb.SessionPool(self.__ydb_driver)
+
+    def select_with_accounts(self, buid):
+        return execute_reading_query(
+            pool=self.__ydb_pool,
+            query=self.SELECT_WITH_ACCOUNT_QUERY,
+            kwargs={
+                "$buid": buid,
+            }
+        )
 
     def insert_agreement(self, id, buid, product, status, auth_level):
         execute_modifying_query(

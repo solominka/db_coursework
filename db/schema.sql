@@ -35,6 +35,7 @@ create table `agreement` (
 create table `account` (
     `number` Text,
     buid Text,
+    `type` Text,
     agreement_id Text,
     auth_level Text,
     `status` Text,
