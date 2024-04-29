@@ -66,3 +66,21 @@ create table `agreement_audit` (
 
 insert into `account_number_sequence`(balance_position, current_value)
     values ('47423', 0), ('40903', 0), ('42301', 0), ('47411', 0), ('47422', 0), ('40914', 0);
+
+create table transaction_event (
+    id Text,
+    ref_id Text,
+    authorization_id Text,
+    status Text,
+    isoDirection Text,
+    isoClass Text,
+    isoCategory Text,
+    transactionDate Date,
+    rrn Text,
+    orn Text,
+    transaction_amount Text,
+    receiver_agreement_id Text,
+    originator_agreement_id Text,
+    created_at Timestamp,
+    PRIMARY KEY (id)
+)

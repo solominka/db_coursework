@@ -5,9 +5,11 @@ from apispec.ext.marshmallow import MarshmallowPlugin
 from apispec_webframeworks.flask import FlaskPlugin
 
 from db.pool import get_ydb_driver
+from db.repository.balance_repository import BalanceRepository
 from exceptions import IdempotencyViolationException, ClientNotFoundException, AgreementNotFoundException
 from service.client_management_service import ClientManagementService
 from service.product_management_service import ProductManagementService
+from service.transaction_service import TransactionService
 
 spec = APISpec(
     title='Online bank system',
@@ -26,6 +28,12 @@ class ResponseSchema(Schema):
     success = fields.Bool(required=True)
     error = fields.Str(required=False)
     id = fields.Str(required=False)
+
+
+class BalanceResponseSchema(Schema):
+    success = fields.Bool(required=True)
+    error = fields.Str(required=False)
+    balance = fields.Str(required=False)
 
 
 @app.route('/client/register', methods=['POST'])
@@ -192,10 +200,100 @@ def upgrade_client():
     return jsonify(ResponseSchema().dump(resp))
 
 
+@app.route('/txn/import', methods=['POST'])
+def import_txn():
+    """
+    Import transaction from originating system
+    ---
+    description: Import transaction from originating system
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          title: Transaction
+          required:
+            - id
+            - status
+            - iso_direction
+            - iso_class
+            - iso_category
+            - transaction_date
+            - rrn
+            - orn
+            - transaction_amount
+          properties:
+            id:
+              type: string
+            ref_id:
+              type: string
+            authorization_id:
+              type: string
+            status:
+              type: string
+            iso_direction:
+              type: string
+            iso_class:
+              type: string
+            iso_category:
+              type: string
+            transaction_date:
+              type: string
+            rrn:
+              type: string
+            orn:
+              type: string
+            transaction_amount:
+              type: string
+            receiver_agreement_id:
+              type: string
+            originator_agreement_id:
+              type: string
+    responses:
+        200:
+            description: Result
+            schema:
+                $ref: '#/definitions/Response'
+    """
+    try:
+        transactionService.import_txn(txn=request.get_json())
+        resp = {'success': True}
+    except AgreementNotFoundException:
+        resp = {'success': False, 'error': 'AGREEMENT_NOT_FOUND'}
+
+    return jsonify(ResponseSchema().dump(resp))
+
+
+@app.route('/agreement/balance/<agreement_id>', methods=['GET'])
+def get_agreement_balance(agreement_id):
+    """
+    Get agreement balance
+    ---
+    description: Get agreement balance
+    parameters:
+      - name: agreement_id
+        in: path
+        required: true
+        type: string
+    responses:
+        200:
+            description: Result
+            schema:
+                $ref: '#/definitions/BalanceResponse'
+    """
+    try:
+        balance = balanceRepository.get_balance(agreement_id=agreement_id)
+        resp = {'success': True, 'balance': balance}
+    except AgreementNotFoundException:
+        resp = {'success': False, 'error': 'AGREEMENT_NOT_FOUND'}
+
+    return jsonify(BalanceResponseSchema().dump(resp))
+
+
 template = spec.to_flasgger(
     app,
-    definitions=[ResponseSchema],
-    paths=[register_client]
+    definitions=[ResponseSchema, BalanceResponseSchema],
+    paths=[register_client, open_product, close_product, upgrade_client, import_txn, get_agreement_balance]
 )
 
 swag = Swagger(app, template=template)
@@ -204,6 +302,8 @@ ydb_driver = get_ydb_driver()
 ydb_driver.wait(fail_fast=True, timeout=30)
 clientManagementService = ClientManagementService(ydb_driver)
 productManagementService = ProductManagementService(ydb_driver)
+transactionService = TransactionService(ydb_driver)
+balanceRepository = BalanceRepository()
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
