@@ -1,6 +1,6 @@
 import ydb
 
-from borb.pdf import Document, Barcode, BarcodeType, Table, FixedColumnWidthTable, Alignment
+from borb.pdf import Document, Barcode, BarcodeType, FixedColumnWidthTable, Alignment
 from borb.pdf import Page
 from borb.pdf import SingleColumnLayout
 from borb.pdf import Paragraph
@@ -9,6 +9,7 @@ from borb.io.read.types import Decimal
 
 from db.repository.agreement_repository import AgreementRepository
 from db.repository.client_repository import ClientRepository
+from db.repository.stmt_requests_repository import StmtRequestRepository
 from db.repository.transaction_stmt_repository import TransactionStmtRepository
 
 
@@ -20,6 +21,15 @@ class TransactionStmtService:
         self.__transactionStmtRepo = TransactionStmtRepository()
         self.__clientRepo = ClientRepository(ydb_driver)
         self.__agreementRepo = AgreementRepository(ydb_driver)
+        self.__stmtRequestRepository = StmtRequestRepository(ydb_driver)
+
+    def get_stmt(self, txn_id, buid):
+        try:
+            self.__transactionStmtRepo.get_file(key=txn_id)
+            self.__stmtRequestRepository.save_request(txn_id=txn_id, buid=buid, success=True)
+        except Exception as e:
+            self.__stmtRequestRepository.save_request(txn_id=txn_id, buid=buid, success=False, fail_reason=str(e))
+            raise e
 
     @staticmethod
     def build_client_fio(client):

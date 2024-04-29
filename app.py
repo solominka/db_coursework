@@ -6,13 +6,13 @@ from apispec_webframeworks.flask import FlaskPlugin
 
 from db.pool import get_ydb_driver
 from db.repository.balance_repository import BalanceRepository
-from db.repository.transaction_stmt_repository import TransactionStmtRepository
 from exceptions import IdempotencyViolationException, ClientNotFoundException, AgreementNotFoundException, \
     InvalidInputException
 from service.CashbackService import CashbackService
 from service.client_management_service import ClientManagementService
 from service.product_management_service import ProductManagementService
 from service.transaction_service import TransactionService
+from service.transaction_stmt_service import TransactionStmtService
 
 spec = APISpec(
     title='Online bank system',
@@ -424,14 +424,18 @@ def get_client_products(buid):
     return jsonify(ClientAgreementsResponseSchema().dump(resp))
 
 
-@app.route('/transaction/<txn_id>/stmt', methods=['GET'])
-def get_transaction_stmt(txn_id):
+@app.route('/client/<buid>/transaction/<txn_id>/stmt', methods=['GET'])
+def get_transaction_stmt(buid, txn_id):
     """
     Get transaction statement
     ---
     description: Get transaction statement
     parameters:
       - name: txn_id
+        in: path
+        required: true
+        type: string
+      - name: buid
         in: path
         required: true
         type: string
@@ -442,7 +446,7 @@ def get_transaction_stmt(txn_id):
                 $ref: '#/definitions/Response'
     """
     try:
-        transactionStmtRepository.get_file(key=txn_id)
+        transactionStmtService.get_stmt(txn_id=txn_id, buid=buid)
         resp = {'success': True}
     except AgreementNotFoundException:
         resp = {'success': False, 'error': 'TRANSACTION_NOT_FOUND'}
@@ -467,7 +471,7 @@ productManagementService = ProductManagementService(ydb_driver)
 transactionService = TransactionService(ydb_driver)
 balanceRepository = BalanceRepository()
 cashbackService = CashbackService(ydb_driver)
-transactionStmtRepository = TransactionStmtRepository()
+transactionStmtService = TransactionStmtService(ydb_driver)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
