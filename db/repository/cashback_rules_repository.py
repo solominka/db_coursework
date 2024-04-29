@@ -3,7 +3,7 @@ from datetime import date
 
 import ydb
 
-from db.utils import execute_modifying_query
+from db.utils import execute_modifying_query, execute_reading_query
 
 
 class CashbackRulesRepository:
@@ -16,6 +16,16 @@ class CashbackRulesRepository:
         
         insert into cashback_rules (id, buid, mcc_mapping, active_from, active_to) values
             ($id, $buid, cast($mcc_mapping as Json), $active_from, $active_to); 
+    """
+
+    GET_ACTIVE_RULES_FOR_BUID_QUERY = """
+        declare $buid as Text;
+        declare $at as Date;
+        select * from cashback_rules 
+        where 
+            buid = $buid
+            and active_from <= $at
+            and active_to >= $at;
     """
 
     def __init__(self, ydb_driver):
@@ -33,3 +43,13 @@ class CashbackRulesRepository:
                 "$active_from": date.fromisoformat(rule['active_from']),
                 "$active_to": date.fromisoformat(rule['active_to']),
             })
+
+    def get_active_rules_for_buid(self, buid, at):
+        return execute_reading_query(
+            pool=self.__ydb_pool,
+            query=self.GET_ACTIVE_RULES_FOR_BUID_QUERY,
+            kwargs={
+                "$buid": buid,
+                "$at": at,
+            }
+        )
