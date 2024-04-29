@@ -6,6 +6,7 @@ from apispec_webframeworks.flask import FlaskPlugin
 
 from db.pool import get_ydb_driver
 from db.repository.balance_repository import BalanceRepository
+from db.repository.transaction_stmt_repository import TransactionStmtRepository
 from exceptions import IdempotencyViolationException, ClientNotFoundException, AgreementNotFoundException, \
     InvalidInputException
 from service.CashbackService import CashbackService
@@ -440,6 +441,7 @@ productManagementService = ProductManagementService(ydb_driver)
 transactionService = TransactionService(ydb_driver)
 balanceRepository = BalanceRepository()
 cashbackService = CashbackService(ydb_driver)
+transactionStmtRepository = TransactionStmtRepository()
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)

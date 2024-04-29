@@ -7,6 +7,7 @@ from db.repository.request_repository import RequestRepository
 from db.repository.transaction_repository import TransactionRepository
 from exceptions import InvalidTransactionException
 from service.CashbackService import CashbackService
+from service.transaction_stmt_service import TransactionStmtService
 
 
 class TransactionService:
@@ -25,6 +26,7 @@ class TransactionService:
         self.__transactionRepo = TransactionRepository(ydb_driver)
         self.__balanceRepository = BalanceRepository()
         self.__cashbackService = CashbackService(ydb_driver)
+        self.__transactionStmtService = TransactionStmtService(ydb_driver)
 
     def import_txn(self, txn):
         error = self.validate_txn(txn=txn)
@@ -36,6 +38,7 @@ class TransactionService:
         except ydb.issues.PreconditionFailed:
             return
         self.update_balance(txn=txn)
+        self.__transactionStmtService.save_stmt(txn=txn)
 
     def validate_txn(self, txn):
         if txn['status'] not in self.STATUSES:
