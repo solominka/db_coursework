@@ -97,3 +97,13 @@ create table cashback_rules (
 ) WITH (
     TTL = Interval("PT720H") ON `active_to`
 );
+
+create table stmt_request (
+    id Text,
+    buid Text,
+    txn_id Text,
+    success Bool,
+    created_at Timestamp,
+    fail_reason Text,
+    PRIMARY KEY (id)
+)
