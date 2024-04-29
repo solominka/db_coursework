@@ -424,12 +424,38 @@ def get_client_products(buid):
     return jsonify(ClientAgreementsResponseSchema().dump(resp))
 
 
+@app.route('/transaction/<txn_id>/stmt', methods=['GET'])
+def get_transaction_stmt(txn_id):
+    """
+    Get transaction statement
+    ---
+    description: Get transaction statement
+    parameters:
+      - name: txn_id
+        in: path
+        required: true
+        type: string
+    responses:
+        200:
+            description: Result
+            schema:
+                $ref: '#/definitions/Response'
+    """
+    try:
+        transactionStmtRepository.get_file(key=txn_id)
+        resp = {'success': True}
+    except AgreementNotFoundException:
+        resp = {'success': False, 'error': 'TRANSACTION_NOT_FOUND'}
+
+    return jsonify(CashbackResponseSchema().dump(resp))
+
+
 template = spec.to_flasgger(
     app,
     definitions=[ResponseSchema, BalanceResponseSchema, CashbackRuleSchema, CashbackResponseSchema,
                  ClientAgreementsResponseSchema],
     paths=[register_client, open_product, close_product, upgrade_client, import_txn, set_cashback_rules,
-           get_agreement_balance, get_client_products]
+           get_agreement_balance, get_client_products, get_transaction_stmt]
 )
 
 swag = Swagger(app, template=template)

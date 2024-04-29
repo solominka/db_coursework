@@ -12,7 +12,6 @@ class TransactionStmtRepository:
 
     def upload_file(self, file_path, key):
         self.__s3.upload_file(file_path, 'stmt', key)
-        self.get_file(key)
 
     def get_file(self, key):
         self.__s3.download_file('stmt', key, '/Users/introvertess/Downloads/{}'.format(key))
