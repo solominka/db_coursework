@@ -37,6 +37,7 @@ class AccountRepository:
     def insert_accounts(self, kwargs):
         column_types = ydb.BulkUpsertColumns() \
             .add_column("number", ydb.PrimitiveType.Utf8) \
+            .add_column("type", ydb.PrimitiveType.Utf8) \
             .add_column("buid", ydb.PrimitiveType.Utf8) \
             .add_column("agreement_id", ydb.PrimitiveType.Utf8) \
             .add_column("status", ydb.PrimitiveType.Utf8) \
