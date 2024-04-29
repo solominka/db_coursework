@@ -5,6 +5,7 @@ import ydb
 
 from db.repository.account_repository import AccountRepository
 from db.repository.agreement_repository import AgreementRepository
+from db.repository.balance_repository import BalanceRepository
 from db.repository.client_repository import ClientRepository
 from db.repository.request_repository import RequestRepository
 from exceptions import ClientNotFoundException, AgreementNotFoundException
@@ -21,6 +22,7 @@ class ProductManagementService:
         self.__accountRepo = AccountRepository(ydb_driver)
         self.__request_repo = RequestRepository(ydb_driver)
         self.__id_generator = IdGenerator(ydb_driver)
+        self.__balanceRepository = BalanceRepository()
 
     def create_product(self, request_body):
         agreement_id = self.__id_generator.generate_agreement_id(product=request_body['product'])
@@ -60,6 +62,7 @@ class ProductManagementService:
                 'auth_level': client[0]['auth_level'],
             } for num in account_numbers],
         )
+        self.__balanceRepository.init_agreement(agreement_id=agreement_id)
 
         self.__request_repo.save_created_entity_id(
             idempotency_token=idempotency_token,
